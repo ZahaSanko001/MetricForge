@@ -1,7 +1,7 @@
 # MetricForge
 
 <p align="center">
-  <img src="Presentation/Resources/Icons/icon.ico" width="96" alt="MetricForge icon">
+  <img src="docs/media/icon.png" width="96" alt="MetricForge icon">
 </p>
 
 <h3 align="center">A lightweight Windows taskbar monitor for CPU, RAM, and network activity.</h3>
