@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MetricForge")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f6bb8f22c3ef9d1238fc634c0448b5fdba5b9646")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d9b99606a72edd583653f1cb442e379cdcb31a2d")]
 [assembly: System.Reflection.AssemblyProductAttribute("MetricForge")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MetricForge")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
