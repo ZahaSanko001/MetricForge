@@ -34,8 +34,8 @@
 ## Highlights
 
 - Three compact vertical indicators for CPU, RAM, and network activity.
-- Transparent indicator backgrounds with amber `#fbbf24` borders.
-- Green, yellow, and red usage colors for quick status recognition.
+- Transparent indicator backgrounds with tall, color-coded metric bars.
+- Purple, orange, and dark-red usage colors for quick status recognition.
 - Configurable update interval and indicator size.
 - Adjustable bar opacity from the Settings window.
 - Configurable network peak speed for accurate network scaling.
@@ -98,7 +98,7 @@ Open **Settings...** from the tray menu to configure:
 | Setting | Description |
 | --- | --- |
 | Bar size | Controls the width and height of each vertical indicator. |
-| Bar opacity | Controls the translucency of the colored bars and borders. |
+| Bar opacity | Controls the translucency of the colored bars. |
 | Update interval | Controls how often system values are refreshed. |
 | Network peak | The connection peak in Kbps used to scale the network indicator. |
 

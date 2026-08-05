@@ -1,7 +1,6 @@
 namespace TaskbarProgress.Infrastructure.Renderers;
 
 using System.Drawing;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using TaskbarProgress.Core.Interfaces;
 using TaskbarProgress.Core.Models;
@@ -16,19 +15,6 @@ public sealed class DwmBarRenderer : IBarRenderer
     private readonly ILogger<DwmBarRenderer> _logger;
     private BarOverlay? _overlay;
     private int _barSize = 10;
-    private static readonly Color BorderColor = Color.FromArgb(255, 255, 210, 48); // #ffd230
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
-
-    [DllImport("user32.dll")]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
-    {
-        public int Left, Top, Right, Bottom;
-    }
 
     public DwmBarRenderer(ILogger<DwmBarRenderer> logger)
     {
@@ -39,17 +25,18 @@ public sealed class DwmBarRenderer : IBarRenderer
     {
         _barSize = Math.Clamp(barSize, 8, 15);
 
-        var taskbar = FindWindow("Shell_TrayWnd", null);
-        if (taskbar == IntPtr.Zero || !GetWindowRect(taskbar, out var rect))
+        var screen = Screen.PrimaryScreen;
+        if (screen == null)
         {
-            _logger.LogWarning("Could not find the Windows taskbar");
+            _logger.LogWarning("Could not find the primary display");
             return;
         }
 
-        var overlayHeight = _barSize * 3 + 4;
+        var overlayHeight = _barSize * 5 + 4;
         var overlayWidth = _barSize * 3 + 12;
-        var x = rect.Left + 8;
-        var y = rect.Top > 0 ? rect.Top - overlayHeight - 2 : rect.Bottom + 2;
+        var workingArea = screen.WorkingArea;
+        var x = workingArea.Left + 8;
+        var y = workingArea.Bottom - overlayHeight - 8;
         var bounds = new Rectangle(x, y, overlayWidth, overlayHeight);
 
         if (_overlay == null || _overlay.IsDisposed)
@@ -192,8 +179,6 @@ public sealed class DwmBarRenderer : IBarRenderer
                 if (filledHeight > 0)
                     e.Graphics.FillRectangle(brush, x + 1, y, Math.Max(1, _barSize - 1), filledHeight);
 
-                using var border = new Pen(BorderColor, 1);
-                e.Graphics.DrawRectangle(border, x, 1, _barSize - 1, barHeight - 1);
             }
         }
     }
