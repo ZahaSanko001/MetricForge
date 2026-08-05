@@ -5,6 +5,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <AssemblyName>MetricForge</AssemblyName>
     <RootNamespace>MetricForge</RootNamespace>
+    <ApplicationIcon>Presentation\Resources\Icons\icon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -17,9 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Presentation\Resources\Icons\icon.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <EmbeddedResource Include="Presentation\Resources\Icons\icon.ico">
+      <LogicalName>MetricForge.Icon.ico</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

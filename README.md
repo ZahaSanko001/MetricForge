@@ -43,11 +43,43 @@
 - Click-through overlay that does not interfere with taskbar interaction.
 - No administrator privileges required.
 
+## Download and use MetricForge
+
+You do not need to install an IDE, .NET, or any programming tools to use MetricForge.
+
+### For users
+
+1. Download the latest `MetricForge-win-x64.zip` file from the [Releases](https://github.com/your-username/MetricForge/releases) page.
+2. Right-click the ZIP file and choose **Extract All**.
+3. Open the extracted folder and double-click `MetricForge.exe`.
+4. MetricForge will start in the Windows system tray. Look for its icon near the clock.
+5. Right-click the tray icon to pause the indicators, open **Settings...**, or exit the app.
+
+Do not run the executable directly from inside the ZIP file. Extract the ZIP first.
+
+On the first launch, Windows may show a SmartScreen warning because the application is not code-signed. If you downloaded it from the official project release, select **More info** and then **Run anyway**.
+
+### For the person creating a release
+
+The ready-to-distribute folder is:
+
+```text
+publish/MetricForge-win-x64/
+```
+
+ZIP the contents of this folder and upload the ZIP to a GitHub Release using a name such as:
+
+```text
+MetricForge-win-x64.zip
+```
+
+Users only need that ZIP file. They should not need the source-code repository.
+
 ## Requirements
 
-- Windows 10 or later.
-- .NET 10 Desktop Runtime when using the framework-dependent package.
-- .NET 10 SDK when building from source.
+- Windows 10 or later for the self-contained release.
+- .NET 10 Desktop Runtime only when using the framework-dependent package.
+- .NET 10 SDK only when building from source.
 
 ## Running from source
 
@@ -90,6 +122,23 @@ Build a Release version:
 ```powershell
 dotnet build -c Release
 ```
+
+## Publishing a single-file application
+
+Create a standalone Windows executable that users can run without an IDE, source code, or separate .NET installation:
+
+```powershell
+dotnet publish -c Release -r win-x64 --self-contained true `
+  -p:PublishSingleFile=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true `
+  -p:EnableCompressionInSingleFile=true `
+  -o publish/MetricForge-win-x64
+```
+
+The resulting `publish/MetricForge-win-x64/MetricForge.exe` is the file to distribute. The application icon is embedded, so no separate resource folder is required.
+
+Windows may display a SmartScreen warning for unsigned applications. Code-signing the executable is recommended for public distribution.
+
 ## Project structure
 
 ```text

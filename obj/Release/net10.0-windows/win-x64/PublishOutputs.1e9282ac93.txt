@@ -1,0 +1,2 @@
+D:\Studio1\TaskbarProgress\publish\MetricForge-win-x64\MetricForge.pdb
+D:\Studio1\TaskbarProgress\publish\MetricForge-win-x64\MetricForge.exe

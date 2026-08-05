@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Reflection;
 using System.Windows.Forms;
 using TaskbarProgress.Core.Services;
 
@@ -43,11 +44,13 @@ public class TrayApplication : ApplicationContext
 
     private static Icon LoadTrayIcon()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Presentation", "Resources", "Icons", "icon.ico");
-        if (!File.Exists(path))
+        var stream = Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("MetricForge.Icon.ico");
+        if (stream == null)
             return SystemIcons.Application;
 
-        return new Icon(path, new Size(32, 32));
+        using (stream)
+            return new Icon(stream, new Size(32, 32));
     }
 
     private ContextMenuStrip CreateContextMenu()
