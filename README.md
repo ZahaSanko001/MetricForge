@@ -34,8 +34,8 @@
 ## Highlights
 
 - Three compact vertical indicators for CPU, RAM, and network activity.
-- Transparent indicator backgrounds with tall, color-coded metric bars.
-- Purple, orange, and dark-red usage colors for quick status recognition.
+- Transparent indicator backgrounds with amber `#fbbf24` borders.
+- Green, yellow, and red usage colors for quick status recognition.
 - Configurable update interval and indicator size.
 - Adjustable bar opacity from the Settings window.
 - Configurable network peak speed for accurate network scaling.
@@ -58,22 +58,6 @@ You do not need to install an IDE, .NET, or any programming tools to use MetricF
 Do not run the executable directly from inside the ZIP file. Extract the ZIP first.
 
 On the first launch, Windows may show a SmartScreen warning because the application is not code-signed. If you downloaded it from the official project release, select **More info** and then **Run anyway**.
-
-### For the person creating a release
-
-The ready-to-distribute folder is:
-
-```text
-publish/MetricForge-win-x64/
-```
-
-ZIP the contents of this folder and upload the ZIP to a GitHub Release using a name such as:
-
-```text
-MetricForge-win-x64.zip
-```
-
-Users only need that ZIP file. They should not need the source-code repository.
 
 ## Requirements
 
@@ -98,7 +82,7 @@ Open **Settings...** from the tray menu to configure:
 | Setting | Description |
 | --- | --- |
 | Bar size | Controls the width and height of each vertical indicator. |
-| Bar opacity | Controls the translucency of the colored bars. |
+| Bar opacity | Controls the translucency of the colored bars and borders. |
 | Update interval | Controls how often system values are refreshed. |
 | Network peak | The connection peak in Kbps used to scale the network indicator. |
 
@@ -108,37 +92,6 @@ For example:
 100 Mbps = 100000 Kbps
 1 Gbps   = 1000000 Kbps
 ```
-
-## Building
-
-Build a normal Debug version:
-
-```powershell
-dotnet build
-```
-
-Build a Release version:
-
-```powershell
-dotnet build -c Release
-```
-
-## Publishing a single-file application
-
-Create a standalone Windows executable that users can run without an IDE, source code, or separate .NET installation:
-
-```powershell
-dotnet publish -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true `
-  -p:IncludeNativeLibrariesForSelfExtract=true `
-  -p:EnableCompressionInSingleFile=true `
-  -o publish/MetricForge-win-x64
-```
-
-The resulting `publish/MetricForge-win-x64/MetricForge.exe` is the file to distribute. The application icon is embedded, so no separate resource folder is required.
-
-Windows may display a SmartScreen warning for unsigned applications. Code-signing the executable is recommended for public distribution.
-
 ## Project structure
 
 ```text
