@@ -49,7 +49,7 @@ You do not need to install an IDE, .NET, or any programming tools to use MetricF
 
 ### For users
 
-1. Download the latest `MetricForge-win-x64.zip` file from the [Releases](https://github.com/your-username/MetricForge/releases) page.
+1. Download the latest `MetricForge-win-x64.zip` file from the [Releases](https://github.com/ZahaSanko001/MetricForge/releases) page.
 2. Right-click the ZIP file and choose **Extract All**.
 3. Open the extracted folder and double-click `MetricForge.exe`.
 4. MetricForge will start in the Windows system tray. Look for its icon near the clock.
@@ -84,7 +84,7 @@ Users only need that ZIP file. They should not need the source-code repository.
 ## Running from source
 
 ```powershell
-git clone https://github.com/your-username/MetricForge.git
+git clone https://github.com/ZahaSanko001/MetricForge.git
 cd MetricForge
 dotnet run
 ```
