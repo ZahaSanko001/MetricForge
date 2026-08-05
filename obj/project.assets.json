@@ -687,7 +687,7 @@
     "version": "1.0.0",
     "restore": {
       "projectUniqueName": "D:\\Studio1\\TaskbarProgress\\TaskbarProgress.csproj",
-      "projectName": "TaskbarProgress",
+      "projectName": "MetricForge",
       "projectPath": "D:\\Studio1\\TaskbarProgress\\TaskbarProgress.csproj",
       "packagesPath": "C:\\Users\\ACER\\.nuget\\packages\\",
       "outputPath": "D:\\Studio1\\TaskbarProgress\\obj\\",

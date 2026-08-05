@@ -2,7 +2,8 @@ namespace TaskbarProgress.Core.Models;
 
 public record ProgressBarConfig
 {
-    public int BarHeight { get; init; } = 3; // Pixels
+    public int BarSize { get; init; } = 10; // Pixels; controls bar width and height
+    public int BarOpacity { get; init; } = 100; // Percentage, 10-100
     public int UpdateIntervalMs { get; init; } = 1000;
     // Network collector reports kilobits per second.
     public double NetworkPeakKbps { get; init; } = 100_000; // 100 Mbps
@@ -13,7 +14,7 @@ public record ProgressBarConfig
 
 public record ProgressBarColors
 {
-    public (byte R, byte G, byte B) Low { get; init; } = (0, 255, 100);    // Green
-    public (byte R, byte G, byte B) Medium { get; init; } = (255, 200, 0);  // Yellow
-    public (byte R, byte G, byte B) High { get; init; } = (255, 50, 50);    // Red
+    public (byte R, byte G, byte B) Low { get; init; } = (73, 255, 0);     // #49FF00
+    public (byte R, byte G, byte B) Medium { get; init; } = (251, 255, 0); // #FBFF00
+    public (byte R, byte G, byte B) High { get; init; } = (255, 0, 0);     // #FF0000
 }

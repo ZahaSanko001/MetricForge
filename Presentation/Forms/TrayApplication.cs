@@ -1,5 +1,5 @@
 using System.Drawing;
-using System.Runtime.InteropServices;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using TaskbarProgress.Core.Services;
 
@@ -25,7 +25,7 @@ public class TrayApplication : ApplicationContext
         _trayIcon = new NotifyIcon
         {
             Icon = LoadTrayIcon(),
-            Text = "TaskbarProgress",
+            Text = "MetricForge",
             Visible = true,
             ContextMenuStrip = CreateContextMenu()
         };
@@ -43,25 +43,12 @@ public class TrayApplication : ApplicationContext
 
     private static Icon LoadTrayIcon()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Presentation", "Resources", "Icons", "icon.png");
+        var path = Path.Combine(AppContext.BaseDirectory, "Presentation", "Resources", "Icons", "icon.ico");
         if (!File.Exists(path))
             return SystemIcons.Application;
 
-        using var bitmap = new Bitmap(path);
-        var iconHandle = bitmap.GetHicon();
-        try
-        {
-            using var temporaryIcon = Icon.FromHandle(iconHandle);
-            return new Icon(temporaryIcon, new Size(16, 16));
-        }
-        finally
-        {
-            DestroyIcon(iconHandle);
-        }
+        return new Icon(path, new Size(32, 32));
     }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool DestroyIcon(IntPtr handle);
 
     private ContextMenuStrip CreateContextMenu()
     {
@@ -75,7 +62,7 @@ public class TrayApplication : ApplicationContext
             Font = new Font("Segoe UI", 9F)
         };
 
-        menu.Items.Add(new ToolStripLabel("TaskbarProgress")
+        menu.Items.Add(new ToolStripLabel("MetricForge")
         {
             ForeColor = SecondaryColor,
             Font = new Font("Segoe UI Semibold", 9F)
@@ -116,10 +103,10 @@ public class TrayApplication : ApplicationContext
         var current = _orchestrator.CurrentConfig;
         using var form = new Form
         {
-            Text = "TaskbarProgress Settings",
-            ClientSize = new Size(430, 340),
+            Text = "MetricForge Settings",
+            ClientSize = new Size(430, 395),
             StartPosition = FormStartPosition.CenterScreen,
-            FormBorderStyle = FormBorderStyle.FixedDialog,
+            FormBorderStyle = FormBorderStyle.None,
             MaximizeBox = false,
             MinimizeBox = false,
             BackColor = SurfaceColor,
@@ -127,6 +114,8 @@ public class TrayApplication : ApplicationContext
             Font = new Font("Segoe UI", 9F),
             ShowInTaskbar = false
         };
+        form.Region = CreateRoundedRegion(form.ClientRectangle, 16);
+        form.Resize += (s, e) => form.Region = CreateRoundedRegion(form.ClientRectangle, 16);
 
         var title = new Label
         {
@@ -144,8 +133,23 @@ public class TrayApplication : ApplicationContext
             ForeColor = MutedTextColor
         };
 
-        var lblHeight = CreateLabel("Bar thickness:", 25, 95);
-        var numHeight = CreateNumber(250, 91, 1, 10, current.BarHeight, 1);
+        var windowClose = new Button
+        {
+            Text = "×",
+            Location = new Point(388, 12),
+            Size = new Size(28, 28),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = SurfaceColor,
+            ForeColor = MutedTextColor,
+            Font = new Font("Segoe UI", 12F),
+            UseVisualStyleBackColor = false,
+            TabStop = false
+        };
+        windowClose.FlatAppearance.BorderSize = 0;
+        windowClose.Click += (s, e) => form.Close();
+
+        var lblHeight = CreateLabel("Bar size:", 25, 95);
+        var numHeight = CreateNumber(250, 91, 8, 15, current.BarSize, 1);
 
         var lblInterval = CreateLabel("Update interval (ms):", 25, 140);
         var numInterval = CreateNumber(250, 136, 100, 10000, current.UpdateIntervalMs, 100);
@@ -163,10 +167,30 @@ public class TrayApplication : ApplicationContext
             Font = new Font("Segoe UI", 8F)
         };
 
+        var lblOpacity = CreateLabel("Bar opacity:", 25, 230);
+        var opacityValue = new Label
+        {
+            Text = $"{current.BarOpacity}%",
+            Location = new Point(350, 230),
+            AutoSize = true,
+            ForeColor = MutedTextColor
+        };
+        var opacitySlider = new TrackBar
+        {
+            Location = new Point(245, 250),
+            Size = new Size(130, 35),
+            Minimum = 10,
+            Maximum = 100,
+            TickFrequency = 10,
+            Value = Math.Clamp(current.BarOpacity, 10, 100),
+            BackColor = SurfaceColor
+        };
+        opacitySlider.ValueChanged += (s, e) => opacityValue.Text = $"{opacitySlider.Value}%";
+
         var btnCancel = new Button
         {
             Text = "Cancel",
-            Location = new Point(160, 260),
+            Location = new Point(160, 320),
             Size = new Size(80, 34),
             BackColor = Color.FromArgb(55, 55, 55),
             ForeColor = TextColor,
@@ -179,7 +203,7 @@ public class TrayApplication : ApplicationContext
         var btnApply = new Button
         {
             Text = "Apply",
-            Location = new Point(250, 260),
+            Location = new Point(250, 320),
             Size = new Size(120, 34),
             BackColor = SecondaryColor,
             ForeColor = SurfaceColor,
@@ -191,7 +215,8 @@ public class TrayApplication : ApplicationContext
         {
             _orchestrator.UpdateConfig(new Core.Models.ProgressBarConfig
             {
-                BarHeight = (int)numHeight.Value,
+                BarSize = (int)numHeight.Value,
+                BarOpacity = opacitySlider.Value,
                 UpdateIntervalMs = (int)numInterval.Value,
                 NetworkPeakKbps = (double)numNetwork.Value
             });
@@ -200,8 +225,9 @@ public class TrayApplication : ApplicationContext
 
         form.Controls.AddRange(new Control[]
         {
-            title, subtitle, lblHeight, numHeight, lblInterval, numInterval,
-            lblNetwork, numNetwork, hint, btnCancel, btnApply
+            title, subtitle, windowClose, lblHeight, numHeight, lblInterval, numInterval,
+            lblNetwork, numNetwork, hint, lblOpacity, opacityValue, opacitySlider,
+            btnCancel, btnApply
         });
 
         form.AcceptButton = btnApply;
@@ -230,6 +256,24 @@ public class TrayApplication : ApplicationContext
         ForeColor = TextColor,
         BorderStyle = BorderStyle.FixedSingle
     };
+
+    private static Region CreateRoundedRegion(Rectangle bounds, int radius)
+    {
+        using var path = CreateRoundedPath(bounds, radius);
+        return new Region(path);
+    }
+
+    private static GraphicsPath CreateRoundedPath(Rectangle bounds, int radius)
+    {
+        var path = new GraphicsPath();
+        var diameter = radius * 2;
+        path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+        path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+        path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+        path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
 
     private sealed class DarkMenuRenderer : ToolStripProfessionalRenderer
     {

@@ -32,9 +32,9 @@ public class ProgressBarOrchestrator
         if (_renderLoop != null) return;
         
         _cts = new CancellationTokenSource();
-        _renderer.Initialize(_config.BarHeight);
+        _renderer.Initialize(_config.BarSize);
         
-        _logger.LogInformation("Starting TaskbarProgress for {Metric}", _config.DisplayMetric);
+        _logger.LogInformation("Starting MetricForge for {Metric}", _config.DisplayMetric);
         
         _renderLoop = Task.Run(() => RenderLoopAsync(_cts.Token));
     }
@@ -82,7 +82,7 @@ public class ProgressBarOrchestrator
         _cts?.Cancel();
         _renderLoop = null;
         _renderer.Clear();
-        _logger.LogInformation("TaskbarProgress stopped");
+        _logger.LogInformation("MetricForge stopped");
     }
 
     public void UpdateConfig(ProgressBarConfig newConfig)

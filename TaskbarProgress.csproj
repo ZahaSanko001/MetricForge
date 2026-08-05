@@ -3,6 +3,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <AssemblyName>MetricForge</AssemblyName>
+    <RootNamespace>MetricForge</RootNamespace>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -15,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Presentation\Resources\Icons\icon.png">
+    <Content Include="Presentation\Resources\Icons\icon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

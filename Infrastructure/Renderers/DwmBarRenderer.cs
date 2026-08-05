@@ -15,8 +15,8 @@ public sealed class DwmBarRenderer : IBarRenderer
 {
     private readonly ILogger<DwmBarRenderer> _logger;
     private BarOverlay? _overlay;
-    private int _barWidth = 6;
-    private static readonly Color BorderColor = Color.FromArgb(251, 191, 36); // #fbbf24
+    private int _barSize = 10;
+    private static readonly Color BorderColor = Color.FromArgb(255, 255, 210, 48); // #ffd230
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
@@ -35,9 +35,9 @@ public sealed class DwmBarRenderer : IBarRenderer
         _logger = logger;
     }
 
-    public void Initialize(int barHeight)
+    public void Initialize(int barSize)
     {
-        _barWidth = Math.Clamp(barHeight * 2, 4, 8);
+        _barSize = Math.Clamp(barSize, 8, 15);
 
         var taskbar = FindWindow("Shell_TrayWnd", null);
         if (taskbar == IntPtr.Zero || !GetWindowRect(taskbar, out var rect))
@@ -46,8 +46,8 @@ public sealed class DwmBarRenderer : IBarRenderer
             return;
         }
 
-        const int overlayHeight = 24;
-        const int overlayWidth = 36;
+        var overlayHeight = _barSize * 3 + 4;
+        var overlayWidth = _barSize * 3 + 12;
         var x = rect.Left + 8;
         var y = rect.Top > 0 ? rect.Top - overlayHeight - 2 : rect.Bottom + 2;
         var bounds = new Rectangle(x, y, overlayWidth, overlayHeight);
@@ -59,7 +59,8 @@ public sealed class DwmBarRenderer : IBarRenderer
         }
 
         _overlay.Bounds = bounds;
-        _overlay._barWidth = _barWidth;
+        _overlay._barSize = _barSize;
+        _overlay.Region = null;
         _overlay.Invalidate();
         _logger.LogInformation("Taskbar overlay initialized at {Bounds}", bounds);
     }
@@ -82,6 +83,7 @@ public sealed class DwmBarRenderer : IBarRenderer
             GetColor(values[1], config.Colors),
             GetColor(values[2], config.Colors)
         };
+        var opacity = Math.Clamp(config.BarOpacity, 10, 100) / 100.0;
 
         try
         {
@@ -89,6 +91,8 @@ public sealed class DwmBarRenderer : IBarRenderer
             {
                 overlay._values = values;
                 overlay._colors = colors;
+                overlay._opacity = opacity;
+                overlay.Opacity = opacity;
                 overlay.Invalidate();
             });
         }
@@ -120,7 +124,7 @@ public sealed class DwmBarRenderer : IBarRenderer
 
     public void UpdateConfiguration(ProgressBarConfig config)
     {
-        Initialize(config.BarHeight);
+        Initialize(config.BarSize);
     }
 
     private static double Normalize(double value) =>
@@ -128,16 +132,17 @@ public sealed class DwmBarRenderer : IBarRenderer
 
     private static Color GetColor(double value, ProgressBarColors colors) => value switch
     {
-        < 50 => Color.FromArgb(colors.Low.R, colors.Low.G, colors.Low.B),
-        < 80 => Color.FromArgb(colors.Medium.R, colors.Medium.G, colors.Medium.B),
-        _ => Color.FromArgb(colors.High.R, colors.High.G, colors.High.B)
+        < 50 => Color.FromArgb(255, colors.Low.R, colors.Low.G, colors.Low.B),
+        < 80 => Color.FromArgb(255, colors.Medium.R, colors.Medium.G, colors.Medium.B),
+        _ => Color.FromArgb(255, colors.High.R, colors.High.G, colors.High.B)
     };
 
     private sealed class BarOverlay : Form
     {
         internal double[] _values = new double[3];
         internal Color[] _colors = { Color.LimeGreen, Color.LimeGreen, Color.LimeGreen };
-        internal int _barWidth = 6;
+        internal int _barSize = 10;
+        internal double _opacity = 1.0;
 
         public BarOverlay()
         {
@@ -147,6 +152,8 @@ public sealed class DwmBarRenderer : IBarRenderer
             TopMost = true;
             BackColor = Color.Magenta;
             TransparencyKey = Color.Magenta;
+            AllowTransparency = true;
+            Opacity = 1.0;
             DoubleBuffered = true;
         }
 
@@ -177,16 +184,16 @@ public sealed class DwmBarRenderer : IBarRenderer
             var barHeight = ClientSize.Height - 2;
             for (var i = 0; i < 3; i++)
             {
-                var x = i * (_barWidth + barGap);
+                var x = i * (_barSize + barGap);
                 var filledHeight = (int)(barHeight * (_values[i] / 100.0));
                 var y = ClientSize.Height - filledHeight - 1;
 
                 using var brush = new SolidBrush(_colors[i]);
                 if (filledHeight > 0)
-                    e.Graphics.FillRectangle(brush, x + 1, y, Math.Max(1, _barWidth - 1), filledHeight);
+                    e.Graphics.FillRectangle(brush, x + 1, y, Math.Max(1, _barSize - 1), filledHeight);
 
                 using var border = new Pen(BorderColor, 1);
-                e.Graphics.DrawRectangle(border, x, 1, _barWidth - 1, barHeight - 1);
+                e.Graphics.DrawRectangle(border, x, 1, _barSize - 1, barHeight - 1);
             }
         }
     }
