@@ -19,7 +19,7 @@
 <!-- Add your screenshots to docs/screenshots/ using the filenames below. -->
 
 <p align="center">
-  <img src="docs/screenshots/taskbar-indicators.png" width="720" alt="MetricForge indicators preview">
+  <img src="docs/screenshots/taskbar-indicators.png" width="300" alt="MetricForge indicators preview">
 </p>
 
 <p align="center">
@@ -31,12 +31,12 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/overlay-dark-mode.png" width="440" alt="MetricForge overlay in dark mode">
-  <img src="docs/screenshots/overlay-light-mode.png" width="440" alt="MetricForge overlay in light mode">
+  <img src="docs/screenshots/overlay-dark-mode.png" width="300" alt="MetricForge overlay in dark mode">
+  <img src="docs/screenshots/overlay-light-mode.png" width="300" alt="MetricForge overlay in light mode">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/no-labels-no-percentages.png" width="440" alt="MetricForge with labels and percentages disabled">
+  <img src="docs/screenshots/no-labels-no-percentages.png" width="300" alt="MetricForge with labels and percentages disabled">
 </p>
 
 ## Highlights
