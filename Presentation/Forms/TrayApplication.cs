@@ -2,7 +2,9 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Reflection;
 using System.Windows.Forms;
+using TaskbarProgress.Core.Models;
 using TaskbarProgress.Core.Services;
+using TaskbarProgress.Infrastructure.Renderers; // ThemePreference
 
 namespace TaskbarProgress.Presentation.Forms;
 
@@ -10,6 +12,7 @@ public class TrayApplication : ApplicationContext
 {
     private static readonly Color SurfaceColor = Color.FromArgb(26, 26, 26); // #1A1A1A
     private static readonly Color SecondaryColor = Color.FromArgb(251, 191, 36); // #fbbf24
+    private static readonly Color SecondaryHoverColor = Color.FromArgb(253, 204, 89);
     private static readonly Color TextColor = Color.FromArgb(245, 245, 245);
     private static readonly Color MutedTextColor = Color.FromArgb(170, 170, 170);
 
@@ -104,11 +107,11 @@ public class TrayApplication : ApplicationContext
     private void ShowSettings()
     {
         var current = _orchestrator.CurrentConfig;
-        using var form = new Form
+        using var form = new SettingsForm
         {
             Text = "MetricForge Settings",
-            ClientSize = new Size(430, 395),
-            StartPosition = FormStartPosition.CenterScreen,
+            ClientSize = new Size(430, 540),
+            StartPosition = FormStartPosition.Manual,
             FormBorderStyle = FormBorderStyle.None,
             MaximizeBox = false,
             MinimizeBox = false,
@@ -117,6 +120,9 @@ public class TrayApplication : ApplicationContext
             Font = new Font("Segoe UI", 9F),
             ShowInTaskbar = false
         };
+
+        PositionAsFlyout(form);
+
         form.Region = CreateRoundedRegion(form.ClientRectangle, 16);
         form.Resize += (s, e) => form.Region = CreateRoundedRegion(form.ClientRectangle, 16);
 
@@ -136,6 +142,12 @@ public class TrayApplication : ApplicationContext
             ForeColor = MutedTextColor
         };
 
+        // Borderless forms have no title bar to drag from, so the form
+        // itself and the header text act as the drag handle instead.
+        form.EnableDragFrom(form);
+        form.EnableDragFrom(title);
+        form.EnableDragFrom(subtitle);
+
         var windowClose = new Button
         {
             Text = "×",
@@ -149,6 +161,7 @@ public class TrayApplication : ApplicationContext
             TabStop = false
         };
         windowClose.FlatAppearance.BorderSize = 0;
+        windowClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(55, 55, 55);
         windowClose.Click += (s, e) => form.Close();
 
         var lblHeight = CreateLabel("Bar size:", 25, 95);
@@ -182,6 +195,7 @@ public class TrayApplication : ApplicationContext
         {
             Location = new Point(245, 250),
             Size = new Size(130, 35),
+            AutoSize = false,
             Minimum = 10,
             Maximum = 100,
             TickFrequency = 10,
@@ -190,10 +204,54 @@ public class TrayApplication : ApplicationContext
         };
         opacitySlider.ValueChanged += (s, e) => opacityValue.Text = $"{opacitySlider.Value}%";
 
+        var lblTheme = CreateLabel("Contrast theme:", 25, 310);
+        var cmbTheme = new ComboBox
+        {
+            Location = new Point(250, 306),
+            Width = 120,
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            DropDownWidth = 145,
+            Height = 28,
+            ItemHeight = 22,
+            BackColor = Color.FromArgb(40, 40, 40),
+            ForeColor = TextColor,
+            FlatStyle = FlatStyle.Standard,
+            Font = new Font("Segoe UI", 9F)
+        };
+        cmbTheme.Items.AddRange(Enum.GetNames(typeof(ThemePreference)));
+        cmbTheme.SelectedItem = current.ThemeOverride.ToString();
+        if (cmbTheme.SelectedIndex < 0) cmbTheme.SelectedIndex = 0; // fall back to Auto
+
+        var chkShowLabels = new CheckBox
+        {
+            Text = "Show CPU / RAM / NET labels",
+            Location = new Point(25, 350),
+            AutoSize = true,
+            ForeColor = TextColor,
+            Checked = current.ShowLabels
+        };
+
+        var chkShowValues = new CheckBox
+        {
+            Text = "Show percentages",
+            Location = new Point(25, 375),
+            AutoSize = true,
+            ForeColor = TextColor,
+            Checked = current.ShowValues
+        };
+
+        var lblColors = CreateLabel("Threshold colors:", 25, 412);
+        var swatchLow = CreateColorSwatch(200, 406, ToColor(current.Colors.Low));
+        var swatchMedium = CreateColorSwatch(250, 406, ToColor(current.Colors.Medium));
+        var swatchHigh = CreateColorSwatch(300, 406, ToColor(current.Colors.High));
+        var capLow = CreateCaption("Low", swatchLow.Location.X, 432, swatchLow.Width);
+        var capMedium = CreateCaption("Med", swatchMedium.Location.X, 432, swatchMedium.Width);
+        var capHigh = CreateCaption("High", swatchHigh.Location.X, 432, swatchHigh.Width);
+
         var btnCancel = new Button
         {
             Text = "Cancel",
-            Location = new Point(160, 320),
+            Location = new Point(160, 470),
             Size = new Size(80, 34),
             BackColor = Color.FromArgb(55, 55, 55),
             ForeColor = TextColor,
@@ -201,12 +259,13 @@ public class TrayApplication : ApplicationContext
             UseVisualStyleBackColor = false
         };
         btnCancel.FlatAppearance.BorderColor = Color.FromArgb(90, 90, 90);
+        btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(70, 70, 70);
         btnCancel.Click += (s, e) => form.Close();
 
         var btnApply = new Button
         {
             Text = "Apply",
-            Location = new Point(250, 320),
+            Location = new Point(250, 470),
             Size = new Size(120, 34),
             BackColor = SecondaryColor,
             ForeColor = SurfaceColor,
@@ -214,6 +273,7 @@ public class TrayApplication : ApplicationContext
             UseVisualStyleBackColor = false
         };
         btnApply.FlatAppearance.BorderSize = 0;
+        btnApply.FlatAppearance.MouseOverBackColor = SecondaryHoverColor;
         btnApply.Click += (s, e) =>
         {
             _orchestrator.UpdateConfig(new Core.Models.ProgressBarConfig
@@ -221,7 +281,16 @@ public class TrayApplication : ApplicationContext
                 BarSize = (int)numHeight.Value,
                 BarOpacity = opacitySlider.Value,
                 UpdateIntervalMs = (int)numInterval.Value,
-                NetworkPeakKbps = (double)numNetwork.Value
+                NetworkPeakKbps = (double)numNetwork.Value,
+                ThemeOverride = Enum.Parse<ThemePreference>((string)cmbTheme.SelectedItem!),
+                ShowLabels = chkShowLabels.Checked,
+                ShowValues = chkShowValues.Checked,
+                Colors = new Core.Models.ProgressBarColors
+                {
+                    Low = ToRgb(swatchLow.BackColor),
+                    Medium = ToRgb(swatchMedium.BackColor),
+                    High = ToRgb(swatchHigh.BackColor)
+                }
             });
             form.Close();
         };
@@ -230,6 +299,8 @@ public class TrayApplication : ApplicationContext
         {
             title, subtitle, windowClose, lblHeight, numHeight, lblInterval, numInterval,
             lblNetwork, numNetwork, hint, lblOpacity, opacityValue, opacitySlider,
+            lblTheme, cmbTheme, chkShowLabels, chkShowValues,
+            lblColors, swatchLow, swatchMedium, swatchHigh, capLow, capMedium, capHigh,
             btnCancel, btnApply
         });
 
@@ -238,12 +309,28 @@ public class TrayApplication : ApplicationContext
         form.ShowDialog();
     }
 
+    private static Color ToColor((byte R, byte G, byte B) color) =>
+        Color.FromArgb(color.R, color.G, color.B);
+
+    private static (byte R, byte G, byte B) ToRgb(Color color) =>
+        ((byte)color.R, (byte)color.G, (byte)color.B);
+
     private static Label CreateLabel(string text, int x, int y) => new()
     {
         Text = text,
         Location = new Point(x, y),
         AutoSize = true,
         ForeColor = TextColor
+    };
+
+    private static Label CreateCaption(string text, int x, int y, int width) => new()
+    {
+        Text = text,
+        Location = new Point(x, y),
+        Size = new Size(width, 14),
+        TextAlign = ContentAlignment.MiddleCenter,
+        ForeColor = MutedTextColor,
+        Font = new Font("Segoe UI", 7.5F)
     };
 
     private static NumericUpDown CreateNumber(int x, int y, decimal min, decimal max,
@@ -259,6 +346,37 @@ public class TrayApplication : ApplicationContext
         ForeColor = TextColor,
         BorderStyle = BorderStyle.FixedSingle
     };
+
+    /// <summary>
+    /// A clickable color swatch used for the threshold-color pickers.
+    /// Opens the stock ColorDialog and updates its own background on pick,
+    /// so the swatch itself doubles as the "current value" display.
+    /// </summary>
+    private static Panel CreateColorSwatch(int x, int y, Color initial)
+    {
+        var swatch = new Panel
+        {
+            Location = new Point(x, y),
+            Size = new Size(36, 24),
+            BackColor = initial,
+            BorderStyle = BorderStyle.FixedSingle,
+            Cursor = Cursors.Hand
+        };
+
+        swatch.Click += (s, e) =>
+        {
+            using var dialog = new ColorDialog
+            {
+                Color = swatch.BackColor,
+                AllowFullOpen = true,
+                FullOpen = false
+            };
+            if (dialog.ShowDialog() == DialogResult.OK)
+                swatch.BackColor = dialog.Color;
+        };
+
+        return swatch;
+    }
 
     private static Region CreateRoundedRegion(Rectangle bounds, int radius)
     {
@@ -291,5 +409,76 @@ public class TrayApplication : ApplicationContext
         public override Color MenuItemBorder => SecondaryColor;
         public override Color SeparatorDark => Color.FromArgb(65, 65, 65);
         public override Color SeparatorLight => SurfaceColor;
+    }
+
+    /// <summary>
+    /// Plain Form doesn't give a borderless window a drag handle or a drop
+    /// shadow. CS_DROPSHADOW is a native window-class style (cheap, GPU-
+    /// composited by DWM — no per-frame drawing cost), and EnableDragFrom
+    /// wires up manual click-and-drag since there's no title bar to grab.
+    /// </summary>
+    private sealed class SettingsForm : Form
+    {
+        private const int CS_DROPSHADOW = 0x00020000;
+
+        private Point _dragAnchor;
+        private bool _dragging;
+
+        public SettingsForm()
+        {
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
+        }
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                var cp = base.CreateParams;
+                cp.ClassStyle |= CS_DROPSHADOW;
+                return cp;
+            }
+        }
+
+        public void EnableDragFrom(Control control)
+        {
+            control.MouseDown += (s, e) =>
+            {
+                if (e.Button != MouseButtons.Left) return;
+                _dragging = true;
+                _dragAnchor = e.Location;
+            };
+            control.MouseMove += (s, e) =>
+            {
+                if (!_dragging) return;
+                Location += new Size(e.Location.X - _dragAnchor.X, e.Location.Y - _dragAnchor.Y);
+            };
+            control.MouseUp += (s, e) => _dragging = false;
+        }
+    }
+
+    /// <summary>
+    /// Anchors the settings window to the bottom-right corner of the working
+    /// area, just above the taskbar — the same corner Windows' own flyouts
+    /// (volume, network, notification center) use. Uses Screen.FromPoint on
+    /// the cursor rather than Screen.PrimaryScreen so it lands on whichever
+    /// monitor the tray icon was actually clicked from in a multi-monitor
+    /// setup, since there's no public API to get a specific NotifyIcon's
+    /// exact screen rect.
+    /// </summary>
+    private static void PositionAsFlyout(Form form)
+    {
+        const int margin = 12;
+
+        var screen = Screen.FromPoint(Cursor.Position);
+        var workingArea = screen.WorkingArea;
+
+        var x = workingArea.Right - form.Width - margin;
+        var y = workingArea.Bottom - form.Height - margin;
+
+        // Guard against a working area shorter than the form (small/scaled
+        // displays) rather than letting it render off the top edge.
+        y = Math.Max(workingArea.Top + margin, y);
+
+        form.Location = new Point(x, y);
     }
 }

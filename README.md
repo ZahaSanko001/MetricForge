@@ -28,19 +28,28 @@
 
 <p align="center">
   <img src="docs/screenshots/tray-menu.png" width="320" alt="MetricForge tray menu preview">
-  <img src="docs/screenshots/demo.gif" width="480" alt="MetricForge demo">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/overlay-dark-mode.png" width="440" alt="MetricForge overlay in dark mode">
+  <img src="docs/screenshots/overlay-light-mode.png" width="440" alt="MetricForge overlay in light mode">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/no-labels-no-percentages.png" width="440" alt="MetricForge with labels and percentages disabled">
 </p>
 
 ## Highlights
 
-- Three compact vertical indicators for CPU, RAM, and network activity.
-- Transparent indicator backgrounds with amber `#fbbf24` borders.
-- Green, yellow, and red usage colors for quick status recognition.
-- Configurable update interval and indicator size.
-- Adjustable bar opacity from the Settings window.
-- Configurable network peak speed for accurate network scaling.
+- Three compact horizontal indicators for CPU, RAM, and network activity.
+- Smooth animated usage bars with configurable opacity.
+- Automatic, light, or dark contrast theme.
+- Optional CPU/RAM/NET labels and percentage values.
+- Customizable low, medium, and high threshold colors.
+- Configurable update interval and bar thickness.
+- Configurable network peak speed for accurate network scaling. (Recommended)
 - Runs quietly from the Windows system tray.
-- Click-through overlay that does not interfere with taskbar interaction.
+- Click-through overlay positioned over the taskbar.
 - No administrator privileges required.
 
 ## Download and use MetricForge
@@ -54,6 +63,13 @@ You do not need to install an IDE, .NET, or any programming tools to use MetricF
 3. Open the extracted folder and double-click `MetricForge.exe`.
 4. MetricForge will start in the Windows system tray. Look for its icon near the clock.
 5. Right-click the tray icon to pause the indicators, open **Settings...**, or exit the app.
+
+### Overlay behavior
+
+- Clicking the Windows Start menu can temporarily hide the overlay. Click anywhere outside the taskbar to close the Start menu and make the overlay appear again.
+- Clicking the taskbar can temporarily hide the overlay. It will automatically reappear after the taskbar finishes updating.
+- The overlay is click-through, so it does not block normal taskbar or desktop interaction.
+- These behaviors cost negligent CPU and RAM. 
 
 Do not run the executable directly from inside the ZIP file. Extract the ZIP first.
 
@@ -81,16 +97,37 @@ Open **Settings...** from the tray menu to configure:
 
 | Setting | Description |
 | --- | --- |
-| Bar size | Controls the width and height of each vertical indicator. |
-| Bar opacity | Controls the translucency of the colored bars and borders. |
+| Bar size | Controls the thickness of each horizontal indicator. |
+| Bar opacity | Controls the translucency of the colored bars. |
 | Update interval | Controls how often system values are refreshed. |
 | Network peak | The connection peak in Kbps used to scale the network indicator. |
+| Contrast theme | Automatically follows Windows, or uses Light/Dark styling. |
+| Show labels | Toggles the CPU, RAM, and NET labels. Enabled by default. |
+| Show percentages | Toggles the percentage values. Enabled by default. |
+| Threshold colors | Lets you customize the low, medium, and high usage colors. |
 
 For example:
 
 ```text
 100 Mbps = 100000 Kbps
 1 Gbps   = 1000000 Kbps
+```
+
+## Overlay screenshot placeholders
+
+Add the following images to `docs/screenshots/` when you are ready:
+
+```text
+taskbar-indicators.png
+settings.png
+tray-menu.png
+overlay-dark-mode.png
+overlay-light-mode.png
+labels-and-percentages.png
+no-labels-no-percentages.png
+labels-only.png
+percentages-only.png
+demo.gif
 ```
 ## Project structure
 
