@@ -75,6 +75,8 @@ public class ProgressBarOrchestrator
         CpuPercent = metrics.Sum(m => m.CpuPercent),
         MemoryPercent = metrics.Sum(m => m.MemoryPercent),
         NetworkKbps = metrics.Sum(m => m.NetworkKbps)
+        ,NetworkDownloadKbps = metrics.Sum(m => m.NetworkDownloadKbps)
+        ,NetworkUploadKbps = metrics.Sum(m => m.NetworkUploadKbps)
     };
 
     public void Stop()

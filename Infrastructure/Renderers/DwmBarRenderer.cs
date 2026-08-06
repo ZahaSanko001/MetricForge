@@ -12,11 +12,11 @@ using TaskbarProgress.Core.Models;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
-/// Displays three labeled, horizontal metric bars docked directly over the
-/// taskbar strip. Because the overlay overlaps the taskbar's own screen
-/// rect, it must (a) fit within the taskbar's actual height, and (b)
-/// actively re-assert HWND_TOPMOST against Explorer, which periodically
-/// reclaims topmost status for the taskbar itself.
+/// Displays CPU and RAM as horizontal bars, and network as a formatted
+/// speed readout (Kbps/Mbps/Gbps) instead of a bar — a percentage-of-peak
+/// bar is inherently arbitrary for network throughput since there's no
+/// natural "100%" the way there is for CPU/RAM. Docked directly over the
+/// taskbar strip; re-asserts HWND_TOPMOST against Explorer as before.
 /// </summary>
 public sealed class DwmBarRenderer : IBarRenderer
 {
@@ -55,6 +55,9 @@ public sealed class DwmBarRenderer : IBarRenderer
         {
             Normalize(metrics.CpuPercent),
             Normalize(metrics.MemoryPercent),
+            // Still computed for the network row — no longer drives a bar's
+            // fill height, but still picks the speed text's color so it
+            // still flashes toward red as usage nears the configured peak.
             Normalize(metrics.NetworkKbps / Math.Max(config.NetworkPeakKbps, 1) * 100.0)
         };
         var colors = new[]
@@ -67,10 +70,15 @@ public sealed class DwmBarRenderer : IBarRenderer
         var themeOverride = config.ThemeOverride;
         var showLabels = config.ShowLabels;
         var showValues = config.ShowValues;
+        var networkKbps = Math.Max(metrics.NetworkKbps, 0);
+        var networkDownloadKbps = Math.Max(metrics.NetworkDownloadKbps, 0);
+        var networkUploadKbps = Math.Max(metrics.NetworkUploadKbps, 0);
 
         try
         {
-            overlay.BeginInvoke(() => overlay.SetTargets(values, colors, opacity, themeOverride, showLabels, showValues));
+            overlay.BeginInvoke(() =>
+                overlay.SetTargets(values, colors, opacity, themeOverride, showLabels, showValues,
+                    networkKbps, networkDownloadKbps, networkUploadKbps));
         }
         catch (InvalidOperationException)
         {
@@ -88,7 +96,7 @@ public sealed class DwmBarRenderer : IBarRenderer
         {
             overlay.BeginInvoke(() => overlay.SetTargets(
                 new double[3], overlay.Colors, overlay.OpacityLevel, overlay.Theme,
-                overlay.LabelsVisible, overlay.ValuesVisible));
+                overlay.LabelsVisible, overlay.ValuesVisible, 0, 0, 0));
         }
         catch (InvalidOperationException)
         {
@@ -128,15 +136,20 @@ public sealed class DwmBarRenderer : IBarRenderer
         private const uint SWP_NOACTIVATE = 0x0010;
 
         private const int LeftOffset = 12;
-        private const int TaskbarVerticalMargin = 4; // breathing room inside the taskbar strip
+        private const int TaskbarVerticalMargin = 4;
 
+        private const int OverlayWidth = 232;
+        private const int LayoutPadding = 5;
+        private const int CardGap = 4;
+        // Kept for the legacy drawing branch below; the compact layout uses cards instead.
         private const int LabelWidth = 30;
         private const int BarLength = 90;
         private const int ValueWidth = 32;
         private const int SectionGap = 6;
         private const int RowGap = 3;
-        private const int LayoutPadding = 4;
         private const int MinBarThickness = 6;
+        private const int NetworkCardWidth = 88;
+        private const int NetworkRowIndex = 2;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct POINT { public int X; public int Y; }
@@ -185,7 +198,7 @@ public sealed class DwmBarRenderer : IBarRenderer
         [DllImport("shell32.dll")] private static extern IntPtr SHAppBarMessage(uint dwMessage, ref APPBARDATA pData);
 
         private int _requestedBarThickness = 10;
-        private int _effectiveBarThickness = 10; // shrunk to fit the taskbar's actual height
+        private int _effectiveBarThickness = 10;
         private double[] _targets = new double[3];
         private double[] _values = new double[3];
         private Color[] _colors = { Color.LimeGreen, Color.LimeGreen, Color.LimeGreen };
@@ -193,6 +206,12 @@ public sealed class DwmBarRenderer : IBarRenderer
         private ThemePreference _theme = ThemePreference.Auto;
         private bool _showLabels = true;
         private bool _showValues = true;
+        private double _networkTarget;
+        private double _networkDisplay; // eased toward _networkTarget, same as the bars
+        private double _networkDownloadTarget;
+        private double _networkDownloadDisplay;
+        private double _networkUploadTarget;
+        private double _networkUploadDisplay;
         private readonly string[] _labels = { "CPU", "RAM", "NET" };
         private readonly System.Windows.Forms.Timer _animTimer;
         private readonly System.Windows.Forms.Timer _watchdogTimer;
@@ -215,10 +234,6 @@ public sealed class DwmBarRenderer : IBarRenderer
             _animTimer.Tick += (_, _) => AnimationTick();
             _animTimer.Start();
 
-            // Explorer re-asserts its own topmost z-order for the taskbar
-            // periodically (and whenever it restarts), so we re-claim the
-            // top spot on an interval rather than relying on Form.TopMost
-            // being set once at startup.
             _watchdogTimer = new System.Windows.Forms.Timer { Interval = 2000 };
             _watchdogTimer.Tick += (_, _) => RepositionOverTaskbar();
             _watchdogTimer.Start();
@@ -242,7 +257,8 @@ public sealed class DwmBarRenderer : IBarRenderer
         public void SetBarThickness(int thickness) => _requestedBarThickness = thickness;
 
         public void SetTargets(double[] values, Color[] colors, double opacity,
-            ThemePreference theme, bool showLabels, bool showValues)
+            ThemePreference theme, bool showLabels, bool showValues, double networkKbps,
+            double networkDownloadKbps, double networkUploadKbps)
         {
             _targets = values;
             _colors = colors;
@@ -250,21 +266,14 @@ public sealed class DwmBarRenderer : IBarRenderer
             _theme = theme;
             _showLabels = showLabels;
             _showValues = showValues;
+            _networkTarget = networkKbps;
+            _networkDownloadTarget = networkDownloadKbps;
+            _networkUploadTarget = networkUploadKbps;
         }
 
-        private static int OverlayWidth =>
-            LayoutPadding + LabelWidth + SectionGap + BarLength + SectionGap + ValueWidth + LayoutPadding;
-
         private static int HeightFor(int barThickness) =>
-            LayoutPadding * 2 + barThickness * 3 + RowGap * 2;
+            Math.Max(26, LayoutPadding * 2 + barThickness + 18);
 
-        /// <summary>
-        /// Docks the overlay inside the taskbar's own screen rect, vertically
-        /// centered, and re-asserts HWND_TOPMOST above it. Shrinks the bar
-        /// thickness to whatever actually fits the current taskbar height
-        /// (which varies by Windows version and DPI/scaling settings) rather
-        /// than requesting a fixed size and risking clipping.
-        /// </summary>
         public void RepositionOverTaskbar()
         {
             var taskbarHwnd = FindWindow("Shell_TrayWnd", null);
@@ -287,9 +296,7 @@ public sealed class DwmBarRenderer : IBarRenderer
             var taskbarHeight = taskbarRect.Bottom - taskbarRect.Top;
             var availableHeight = taskbarHeight - TaskbarVerticalMargin * 2;
 
-            // Solve for the largest bar thickness (capped at the requested
-            // value) whose 3-row layout fits inside the taskbar strip.
-            var maxThicknessThatFits = (availableHeight - LayoutPadding * 2 - RowGap * 2) / 3;
+            var maxThicknessThatFits = Math.Max(MinBarThickness, availableHeight - LayoutPadding * 2 - 22);
             _effectiveBarThickness = Math.Clamp(
                 Math.Min(_requestedBarThickness, maxThicknessThatFits), MinBarThickness, _requestedBarThickness);
 
@@ -302,8 +309,6 @@ public sealed class DwmBarRenderer : IBarRenderer
             if (Bounds != target)
                 Bounds = target;
 
-            // Re-claim top of z-order without stealing focus or triggering
-            // another move/resize (SetWindowPos itself already positioned it).
             SetWindowPos(Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         }
 
@@ -333,16 +338,51 @@ public sealed class DwmBarRenderer : IBarRenderer
                 changed = true;
             }
 
+            // Same easing as the bars, but with a magnitude-relative snap
+            // threshold — 0.15 makes sense for a 0-100 percentage, not for
+            // a Kbps value that might be in the tens of thousands.
+            var netDelta = _networkTarget - _networkDisplay;
+            var netEpsilon = Math.Max(1.0, Math.Abs(_networkTarget) * 0.005);
+            if (Math.Abs(netDelta) < netEpsilon)
+            {
+                if (_networkDisplay != _networkTarget)
+                {
+                    _networkDisplay = _networkTarget;
+                    changed = true;
+                }
+            }
+            else
+            {
+                _networkDisplay += netDelta * 0.25;
+                changed = true;
+            }
+
+            changed |= EaseNetwork(ref _networkDownloadDisplay, _networkDownloadTarget);
+            changed |= EaseNetwork(ref _networkUploadDisplay, _networkUploadTarget);
+
             if (changed)
                 Redraw();
         }
 
-        private bool IsDarkMode() => _theme switch
+        private static bool EaseNetwork(ref double display, double target)
         {
-            ThemePreference.Light => false,
-            ThemePreference.Dark => true,
-            _ => ReadSystemDarkMode()
-        };
+            var delta = target - display;
+            var epsilon = Math.Max(1.0, Math.Abs(target) * 0.005);
+            if (Math.Abs(delta) < epsilon)
+            {
+                if (display == target)
+                    return false;
+                display = target;
+                return true;
+            }
+
+            display += delta * 0.25;
+            return true;
+        }
+
+        // The overlay is transparent, so the high-contrast dark typography
+        // remains the most legible choice on both light and dark taskbars.
+        private bool IsDarkMode() => true;
 
         private static bool ReadSystemDarkMode()
         {
@@ -355,8 +395,29 @@ public sealed class DwmBarRenderer : IBarRenderer
             }
             catch
             {
-                return true; // assume dark taskbar (Windows default) if unreadable
+                return true;
             }
+        }
+
+        /// <summary>
+        /// Auto-scales Kbps into whatever unit reads most naturally —
+        /// avoids ever showing "2400 Kbps" when "2.4 Mbps" is clearer.
+        /// </summary>
+        private static string FormatSpeed(double kbps)
+        {
+            kbps = Math.Max(0, kbps);
+
+            if (kbps < 10)
+                return $"{kbps:0.0} Kbps";
+            if (kbps < 1000)
+                return $"{kbps:0} Kbps";
+
+            var mbps = kbps / 1000.0;
+            if (mbps < 1000)
+                return $"{mbps:0.0} Mbps";
+
+            var gbps = mbps / 1000.0;
+            return $"{gbps:0.00} Gbps";
         }
 
         public void Redraw()
@@ -372,7 +433,7 @@ public sealed class DwmBarRenderer : IBarRenderer
 
             var darkMode = IsDarkMode();
             var strokeColor = darkMode ? Color.FromArgb(210, 255, 255, 255) : Color.FromArgb(200, 0, 0, 0);
-            var textColor = darkMode ? Color.FromArgb(235, 255, 255, 255) : Color.FromArgb(230, 0, 0, 0);
+            var textColor = Color.FromArgb(245, 255, 255, 255);
             var shadowColor = Color.FromArgb(90, 0, 0, 0);
 
             using var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
@@ -384,20 +445,22 @@ public sealed class DwmBarRenderer : IBarRenderer
                 g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
                 g.Clear(Color.Transparent);
 
+                DrawCompactLayout(g, width, height, barThickness, darkMode, strokeColor, textColor, shadowColor);
+                if (LegacyLayoutEnabled())
+                {
+
                 var radius = Math.Max(2, barThickness / 3);
                 var globalAlpha = (int)(255 * _opacity);
                 var fontSize = barThickness <= 8 ? 6.5f : 7f;
                 using var labelFont = new Font("Segoe UI", fontSize, FontStyle.Bold);
                 using var valueFont = new Font("Segoe UI", fontSize, FontStyle.Regular);
+                using var speedFont = new Font("Segoe UI", fontSize, FontStyle.Bold);
 
                 for (var i = 0; i < 3; i++)
                 {
                     var rowY = LayoutPadding + i * (barThickness + RowGap);
                     var rowRect = new Rectangle(LayoutPadding, rowY, width - LayoutPadding * 2, barThickness);
-
                     var labelRect = new Rectangle(rowRect.X, rowRect.Y, LabelWidth, barThickness);
-                    var trackRect = new Rectangle(labelRect.Right + SectionGap, rowRect.Y, BarLength, barThickness);
-                    var valueRect = new Rectangle(trackRect.Right + SectionGap, rowRect.Y, ValueWidth, barThickness);
 
                     if (_showLabels)
                     {
@@ -405,6 +468,27 @@ public sealed class DwmBarRenderer : IBarRenderer
                         using var fmt = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Near };
                         g.DrawString(_labels[i], labelFont, textBrush, labelRect, fmt);
                     }
+
+                    if (i == NetworkRowIndex)
+                    {
+                        // No bar — just the formatted speed, right-aligned
+                        // across the space the bar+value column used to
+                        // occupy, colored by percent-of-peak like the bars.
+                        if (_showValues)
+                        {
+                            var speedRect = new Rectangle(
+                                labelRect.Right + SectionGap, rowRect.Y,
+                                BarLength + SectionGap + ValueWidth, barThickness);
+
+                            using var speedBrush = new SolidBrush(Color.FromArgb(globalAlpha, _colors[i]));
+                            using var speedFmt = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Far };
+                            g.DrawString(FormatSpeed(_networkDisplay), speedFont, speedBrush, speedRect, speedFmt);
+                        }
+                        continue;
+                    }
+
+                    var trackRect = new Rectangle(labelRect.Right + SectionGap, rowRect.Y, BarLength, barThickness);
+                    var valueRect = new Rectangle(trackRect.Right + SectionGap, rowRect.Y, ValueWidth, barThickness);
 
                     using (var shadowBrush = new SolidBrush(shadowColor))
                         FillRoundedRect(g, shadowBrush, Offset(trackRect, 0, 1), radius + 1);
@@ -439,10 +523,185 @@ public sealed class DwmBarRenderer : IBarRenderer
                         g.DrawString($"{_values[i]:0}%", valueFont, valueBrush, valueRect, valueFmt);
                     }
                 }
+                }
             }
 
             PremultiplyAlpha(bitmap);
             DrawToScreen(bitmap);
+        }
+
+        private void DrawCompactLayout(Graphics g, int width, int height, int barThickness, bool darkMode,
+            Color strokeColor, Color textColor, Color shadowColor)
+        {
+            // Keep the radius just inside half the height so the helper
+            // always produces a capsule instead of falling back to a box.
+            var radius = Math.Max(2, barThickness / 2 - 1);
+            var globalAlpha = (int)(255 * _opacity);
+            var fontSize = barThickness <= 8 ? 6.5f : 7f;
+            using var labelFont = new Font("Segoe UI", fontSize, FontStyle.Bold);
+            using var valueFont = new Font("Segoe UI", fontSize, FontStyle.Regular);
+            using var speedFont = new Font("Segoe UI", barThickness <= 8 ? 8f : 8.5f, FontStyle.Bold);
+
+            var cardHeight = height - LayoutPadding * 2;
+            var networkX = width - LayoutPadding - NetworkCardWidth;
+            var metricWidth = (networkX - LayoutPadding - CardGap) / 2;
+            if (!_showLabels && !_showValues)
+            {
+                DrawStackedMetricBars(g,
+                    new Rectangle(LayoutPadding, LayoutPadding,
+                        networkX - LayoutPadding - CardGap, cardHeight),
+                    barThickness, radius, globalAlpha);
+            }
+            else
+            {
+                DrawMetricCard(g, new Rectangle(LayoutPadding, LayoutPadding, metricWidth, cardHeight), 0,
+                    barThickness, radius, globalAlpha, textColor, strokeColor, shadowColor, labelFont, valueFont, darkMode);
+                DrawMetricCard(g, new Rectangle(LayoutPadding + metricWidth + CardGap, LayoutPadding, metricWidth, cardHeight), 1,
+                    barThickness, radius, globalAlpha, textColor, strokeColor, shadowColor, labelFont, valueFont, darkMode);
+            }
+            DrawNetworkCard(g, new Rectangle(networkX, LayoutPadding, NetworkCardWidth, cardHeight),
+                textColor, strokeColor, shadowColor, speedFont, globalAlpha, darkMode);
+
+            using var dividerPen = new Pen(Color.FromArgb((int)(strokeColor.A * 0.28), strokeColor), 1f);
+            var secondDividerX = networkX - CardGap / 2;
+            if (_showLabels || _showValues)
+            {
+                var firstDividerX = LayoutPadding + metricWidth + CardGap / 2;
+                g.DrawLine(dividerPen, firstDividerX, LayoutPadding + 3, firstDividerX, height - LayoutPadding - 3);
+            }
+            g.DrawLine(dividerPen, secondDividerX, LayoutPadding + 3, secondDividerX, height - LayoutPadding - 3);
+        }
+
+        private static bool LegacyLayoutEnabled() =>
+            Environment.GetEnvironmentVariable("METRICFORGE_LEGACY_LAYOUT") == "1";
+
+        private void DrawStackedMetricBars(Graphics g, Rectangle column, int barThickness, int radius, int globalAlpha)
+        {
+            var gap = 3;
+            var rowHeight = (column.Height - gap) / 2;
+            var trackWidth = column.Width - 8;
+            for (var index = 0; index < 2; index++)
+            {
+                var track = new Rectangle(column.X + 4, column.Y + index * (rowHeight + gap) +
+                    Math.Max(0, (rowHeight - barThickness) / 2), trackWidth, Math.Min(barThickness, rowHeight));
+                var trackRadius = Math.Max(2, Math.Min(radius, track.Height / 2 - 1));
+                using (var trackBrush = new SolidBrush(Color.FromArgb((int)(65 * _opacity), 255, 255, 255)))
+                    FillRoundedRect(g, trackBrush, track, trackRadius);
+
+                var filledWidth = Math.Max(1, (int)(track.Width * (_values[index] / 100.0)));
+                var fill = new Rectangle(track.X, track.Y, Math.Min(track.Width, filledWidth), track.Height);
+                var baseColor = Saturate(_colors[index], 1.15);
+                using var gradient = new LinearGradientBrush(fill, Color.FromArgb(globalAlpha, baseColor),
+                    Color.FromArgb(globalAlpha, Lighten(baseColor, 0.35)), LinearGradientMode.Horizontal);
+                FillRoundedRect(g, gradient, fill, trackRadius);
+            }
+        }
+
+        private void DrawMetricCard(Graphics g, Rectangle card, int index, int barThickness, int radius,
+            int globalAlpha, Color textColor, Color strokeColor, Color shadowColor, Font labelFont, Font valueFont,
+            bool darkMode)
+        {
+            // Keep the header and bar coordinates fixed when labels are hidden;
+            // the toggle should remove text, not reflow the metrics.
+            const int headerHeight = 11;
+            var labelHeight = headerHeight;
+            var headerRect = new Rectangle(card.X + 5, card.Y + 2, card.Width - 10, labelHeight);
+            if (_showLabels)
+            {
+                using var labelBrush = new SolidBrush(textColor);
+                using var labelFmt = new StringFormat { LineAlignment = StringAlignment.Center };
+                DrawReadableText(g, _labels[index], labelFont, labelBrush, headerRect, labelFmt, darkMode);
+            }
+
+            if (_showValues)
+            {
+                using var valueBrush = new SolidBrush(textColor);
+                using var valueFmt = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Far };
+                DrawReadableText(g, $"{_values[index]:0}%", valueFont, valueBrush, headerRect, valueFmt, darkMode);
+            }
+
+            var track = new Rectangle(card.X + 5, card.Y + labelHeight + 3, card.Width - 10, barThickness);
+            using (var trackBrush = new SolidBrush(Color.FromArgb((int)(65 * _opacity), 255, 255, 255)))
+                FillRoundedRect(g, trackBrush, track, radius);
+            var filledWidth = Math.Max(1, (int)(track.Width * (_values[index] / 100.0)));
+            var fill = new Rectangle(track.X, track.Y, Math.Min(track.Width, filledWidth), track.Height);
+            var baseColor = Saturate(_colors[index], 1.15);
+            using (var gradient = new LinearGradientBrush(fill, Color.FromArgb(globalAlpha, baseColor),
+                       Color.FromArgb(globalAlpha, Lighten(baseColor, 0.35)), LinearGradientMode.Horizontal))
+                FillRoundedRect(g, gradient, fill, radius);
+
+        }
+
+        private void DrawNetworkCard(Graphics g, Rectangle card, Color textColor, Color strokeColor,
+            Color shadowColor, Font speedFont, int globalAlpha, bool darkMode)
+        {
+            var speedText = FormatSpeed(_networkDisplay);
+            var speedWidth = (int)Math.Ceiling(g.MeasureString(speedText, speedFont).Width);
+            var groupWidth = 10 + 4 + speedWidth;
+            var groupX = card.X + Math.Max(0, (card.Width - groupWidth) / 2);
+            DrawNetworkSphere(g, new Rectangle(groupX, card.Y + (card.Height - 10) / 2, 10, 10),
+                _networkDownloadDisplay > 0, _networkUploadDisplay > 0, darkMode);
+            using var speedBrush = new SolidBrush(Color.FromArgb(globalAlpha, textColor));
+            using var speedFmt = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Center };
+            DrawReadableText(g, speedText, speedFont, speedBrush,
+                new Rectangle(groupX + 14, card.Y, speedWidth, card.Height), speedFmt, darkMode);
+        }
+
+        private void DrawNetworkSphere(Graphics g, Rectangle bounds, bool hasDownload, bool hasUpload, bool darkMode)
+        {
+            var medium = EnsureThemeContrast(_colors[1], darkMode);
+            var high = EnsureThemeContrast(_colors[2], darkMode);
+            using var sphereBrush = new SolidBrush(Color.FromArgb(hasDownload ? 255 : 70, medium));
+            g.FillEllipse(sphereBrush, bounds);
+            using var uploadBrush = new SolidBrush(Color.FromArgb(hasUpload ? 255 : 70, high));
+            g.FillPie(uploadBrush, bounds, 0, 180);
+            using var outline = new Pen(Color.FromArgb(150, 255, 255, 255), 1f);
+            g.DrawEllipse(outline, bounds);
+
+            using var highlight = new SolidBrush(Color.FromArgb(110, 255, 255, 255));
+            g.FillEllipse(highlight, new Rectangle(bounds.X + 2, bounds.Y + 2, 2, 2));
+        }
+
+        private static void DrawReadableText(Graphics g, string text, Font font, Brush brush,
+            Rectangle bounds, StringFormat format, bool darkMode)
+        {
+            if (!darkMode)
+            {
+                g.DrawString(text, font, brush, bounds, format);
+                return;
+            }
+
+            var halo = darkMode ? Color.FromArgb(120, 0, 0, 0) : Color.FromArgb(170, 255, 255, 255);
+            using var haloBrush = new SolidBrush(halo);
+            foreach (var (x, y) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
+                g.DrawString(text, font, haloBrush, Offset(bounds, x, y), format);
+            g.DrawString(text, font, brush, bounds, format);
+        }
+
+        private static Color EnsureThemeContrast(Color color, bool darkMode)
+        {
+            var luminance = (0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B) / 255.0;
+            if (darkMode && luminance < 0.5)
+                return Lighten(color, 0.65);
+            if (!darkMode && luminance > 0.7)
+                return Darken(color, 0.45);
+            return color;
+        }
+
+        private static Color Darken(Color color, double amount)
+        {
+            int Adjust(byte value) => (int)Math.Clamp(value * (1 - amount), 0, 255);
+            return Color.FromArgb(255, Adjust(color.R), Adjust(color.G), Adjust(color.B));
+        }
+
+        private static void DrawCardSurface(Graphics g, Rectangle card, int radius, Color strokeColor, Color shadowColor)
+        {
+            using (var shadowBrush = new SolidBrush(shadowColor))
+                FillRoundedRect(g, shadowBrush, Offset(card, 0, 1), radius);
+            using (var cardBrush = new SolidBrush(Color.FromArgb(35, 255, 255, 255)))
+                FillRoundedRect(g, cardBrush, card, radius);
+            using var cardPen = new Pen(Color.FromArgb((int)(strokeColor.A * 0.55), strokeColor), 1f);
+            DrawRoundedRect(g, cardPen, card, radius);
         }
 
         private static Rectangle Offset(Rectangle r, int dx, int dy) =>
@@ -522,7 +781,7 @@ public sealed class DwmBarRenderer : IBarRenderer
             var diameter = radius * 2;
             var path = new GraphicsPath();
 
-            if (diameter <= 0 || rect.Width <= diameter || rect.Height <= diameter)
+            if (diameter <= 0 || rect.Width < diameter || rect.Height < diameter)
             {
                 path.AddRectangle(rect);
                 return path;

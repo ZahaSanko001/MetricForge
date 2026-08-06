@@ -207,24 +207,6 @@ public class TrayApplication : ApplicationContext
         };
         opacitySlider.ValueChanged += (s, e) => opacityValue.Text = $"{opacitySlider.Value}%";
 
-        var lblTheme = CreateLabel("Contrast theme:", 25, 310);
-        var cmbTheme = new ComboBox
-        {
-            Location = new Point(250, 306),
-            Width = 120,
-            DropDownStyle = ComboBoxStyle.DropDownList,
-            DropDownWidth = 145,
-            Height = 28,
-            ItemHeight = 22,
-            BackColor = Color.FromArgb(40, 40, 40),
-            ForeColor = TextColor,
-            FlatStyle = FlatStyle.Standard,
-            Font = new Font("Segoe UI", 9F)
-        };
-        cmbTheme.Items.AddRange(Enum.GetNames(typeof(ThemePreference)));
-        cmbTheme.SelectedItem = current.ThemeOverride.ToString();
-        if (cmbTheme.SelectedIndex < 0) cmbTheme.SelectedIndex = 0; // fall back to Auto
-
         var chkShowLabels = new CheckBox
         {
             Text = "Show CPU / RAM / NET labels",
@@ -285,7 +267,7 @@ public class TrayApplication : ApplicationContext
                 BarOpacity = opacitySlider.Value,
                 UpdateIntervalMs = (int)numInterval.Value,
                 NetworkPeakKbps = (double)numNetwork.Value,
-                ThemeOverride = Enum.Parse<ThemePreference>((string)cmbTheme.SelectedItem!),
+                ThemeOverride = ThemePreference.Dark,
                 ShowLabels = chkShowLabels.Checked,
                 ShowValues = chkShowValues.Checked,
                 Colors = new Core.Models.ProgressBarColors
@@ -302,7 +284,7 @@ public class TrayApplication : ApplicationContext
         {
             title, subtitle, windowClose, lblHeight, numHeight, lblInterval, numInterval,
             lblNetwork, numNetwork, hint, lblOpacity, opacityValue, opacitySlider,
-            lblTheme, cmbTheme, chkShowLabels, chkShowValues,
+            chkShowLabels, chkShowValues,
             lblColors, swatchLow, swatchMedium, swatchHigh, capLow, capMedium, capHigh,
             btnCancel, btnApply
         });

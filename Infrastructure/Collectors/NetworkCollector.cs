@@ -45,13 +45,14 @@ public sealed class NetworkCollector : IMetricsCollector
         if (_interfaces.Count == 0)
             return Task.FromResult(new SystemMetrics { NetworkKbps = 0 });
 
-        double bytesPerSecond = 0;
+        double downloadBytesPerSecond = 0;
+        double uploadBytesPerSecond = 0;
         foreach (var networkInterface in _interfaces)
         {
             try
             {
-                bytesPerSecond += networkInterface.Sent.NextValue();
-                bytesPerSecond += networkInterface.Received.NextValue();
+                uploadBytesPerSecond += networkInterface.Sent.NextValue();
+                downloadBytesPerSecond += networkInterface.Received.NextValue();
             }
             catch
             {
@@ -59,10 +60,13 @@ public sealed class NetworkCollector : IMetricsCollector
             }
         }
 
-        var networkKbps = bytesPerSecond * 8 / 1024;
+        var uploadKbps = uploadBytesPerSecond * 8 / 1024;
+        var downloadKbps = downloadBytesPerSecond * 8 / 1024;
         return Task.FromResult(new SystemMetrics
         {
-            NetworkKbps = Math.Round(networkKbps, 1)
+            NetworkKbps = Math.Round(uploadKbps + downloadKbps, 1),
+            NetworkDownloadKbps = Math.Round(downloadKbps, 1),
+            NetworkUploadKbps = Math.Round(uploadKbps, 1)
         });
     }
 }
