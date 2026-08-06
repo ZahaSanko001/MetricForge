@@ -10,9 +10,10 @@ namespace TaskbarProgress.Presentation.Forms;
 
 public class TrayApplication : ApplicationContext
 {
-    private static readonly Color SurfaceColor = Color.FromArgb(26, 26, 26); // #1A1A1A
-    private static readonly Color SecondaryColor = Color.FromArgb(251, 191, 36); // #fbbf24
-    private static readonly Color SecondaryHoverColor = Color.FromArgb(253, 204, 89);
+    private static readonly Color SurfaceColor = Color.FromArgb(27, 27, 27); // #1B1B1B
+    private static readonly Color SecondaryColor = Color.FromArgb(186, 236, 23); // #BAEC17
+    private static readonly Color SecondaryHoverColor = Color.FromArgb(205, 245, 72);
+    private static readonly Color DangerColor = Color.FromArgb(233, 77, 12); // #E94D0C
     private static readonly Color TextColor = Color.FromArgb(245, 245, 245);
     private static readonly Color MutedTextColor = Color.FromArgb(170, 170, 170);
 
@@ -87,7 +88,9 @@ public class TrayApplication : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Settings...", null, (s, e) => ShowSettings());
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Exit", null, (s, e) => Application.Exit());
+        var exitItem = new ToolStripMenuItem("Exit") { ForeColor = DangerColor };
+        exitItem.Click += (s, e) => Application.Exit();
+        menu.Items.Add(exitItem);
         return menu;
     }
 
@@ -161,7 +164,7 @@ public class TrayApplication : ApplicationContext
             TabStop = false
         };
         windowClose.FlatAppearance.BorderSize = 0;
-        windowClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(55, 55, 55);
+        windowClose.FlatAppearance.MouseOverBackColor = DangerColor;
         windowClose.Click += (s, e) => form.Close();
 
         var lblHeight = CreateLabel("Bar size:", 25, 95);

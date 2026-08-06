@@ -2,14 +2,14 @@ namespace TaskbarProgress.Core.Models;
 
 public record ProgressBarConfig
 {
-    public int BarSize { get; init; } = 10; // Pixels; controls bar width and height
+    public int BarSize { get; init; } = 8; // Pixels; controls bar width and height
     public int BarOpacity { get; init; } = 100; // Percentage, 10-100
     public ThemePreference ThemeOverride { get; init; } = ThemePreference.Auto;
     public bool ShowLabels { get; init; } = true;
     public bool ShowValues { get; init; } = true;
     public int UpdateIntervalMs { get; init; } = 1000;
     // Network collector reports kilobits per second.
-    public double NetworkPeakKbps { get; init; } = 100_000; // 100 Mbps
+    public double NetworkPeakKbps { get; init; } = 30_000; // 30 Mbps
     public bool AutoStart { get; init; } = true;
     public MetricType DisplayMetric { get; init; } = MetricType.Cpu;
     public ProgressBarColors Colors { get; init; } = new();
@@ -17,9 +17,9 @@ public record ProgressBarConfig
 
 public record ProgressBarColors
 {
-    public (byte R, byte G, byte B) Low { get; init; } = (46, 41, 78);     // #2E294E
-    public (byte R, byte G, byte B) Medium { get; init; } = (244, 140, 6);  // #f48c06
-    public (byte R, byte G, byte B) High { get; init; } = (157, 2, 8);      // #9D0208
+    public (byte R, byte G, byte B) Low { get; init; } = (27, 27, 27);     // #1B1B1B
+    public (byte R, byte G, byte B) Medium { get; init; } = (186, 236, 23); // #BAEC17
+    public (byte R, byte G, byte B) High { get; init; } = (233, 77, 12);   // #E94D0C
 }
 
 public enum ThemePreference
