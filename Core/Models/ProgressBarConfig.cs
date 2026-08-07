@@ -3,10 +3,10 @@ namespace TaskbarProgress.Core.Models;
 public record ProgressBarConfig
 {
     public int BarSize { get; init; } = 8; // Pixels; controls bar width and height
-    public int BarOpacity { get; init; } = 100; // Percentage, 10-100
+    public int BarOpacity { get; init; } = 70; // Percentage, 10-100
     public ThemePreference ThemeOverride { get; init; } = ThemePreference.Auto;
-    public bool ShowLabels { get; init; } = true;
-    public bool ShowValues { get; init; } = true;
+    public bool ShowLabels { get; init; } = false;
+    public bool ShowValues { get; init; } = false;
     public int UpdateIntervalMs { get; init; } = 1000;
     // Network collector reports kilobits per second.
     public double NetworkPeakKbps { get; init; } = 30_000; // 30 Mbps
