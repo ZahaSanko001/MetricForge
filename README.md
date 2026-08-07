@@ -23,20 +23,15 @@
 </p>
 
 <p align="center">
+  <img src="docs/screenshots/no-labels-no-percentages.png" width="300" alt="MetricForge with labels and percentages disabled">
+</p>
+
+<p align="center">
   <img src="docs/screenshots/settings.png" width="420" alt="MetricForge settings preview">
 </p>
 
 <p align="center">
   <img src="docs/screenshots/tray-menu.png" width="320" alt="MetricForge tray menu preview">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/overlay-dark-mode.png" width="300" alt="MetricForge overlay in dark mode">
-  <img src="docs/screenshots/overlay-light-mode.png" width="300" alt="MetricForge overlay in light mode">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/no-labels-no-percentages.png" width="300" alt="MetricForge with labels and percentages disabled">
 </p>
 
 ## Highlights
